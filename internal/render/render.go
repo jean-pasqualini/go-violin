@@ -6,8 +6,8 @@ import (
 	"net/http"
 )
 
-// ScaleOptions represents the options for generating the content.
-type ScaleOptions struct {
+// HtmlSelectOption represents the options for generating the content.
+type HtmlSelectOption struct {
 	Name       string
 	Value      string
 	IsDisabled bool
@@ -31,11 +31,21 @@ type PageVars struct {
 	DuetAudio2    string
 	LeftLabel     string
 	RightLabel    string
-	ScaleOptions  []ScaleOptions
-	DuetOptions   []ScaleOptions
-	PitchOptions  []ScaleOptions
-	KeyOptions    []ScaleOptions
-	OctaveOptions []ScaleOptions
+	ScaleOptions  []HtmlSelectOption
+	DuetOptions   []HtmlSelectOption
+	PitchOptions  []HtmlSelectOption
+	KeyOptions    []HtmlSelectOption
+	OctaveOptions []HtmlSelectOption
+}
+
+func BindValueToHtmlSelectOptions(value string, options []HtmlSelectOption) []HtmlSelectOption {
+	for key, option := range options {
+		if value == option.Value {
+			options[key].IsChecked = true
+		}
+	}
+
+	return options
 }
 
 // Render genereates the html for any given web page.

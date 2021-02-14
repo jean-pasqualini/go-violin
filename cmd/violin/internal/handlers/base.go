@@ -30,7 +30,7 @@ func (b *Base) Home(responseWriter http.ResponseWriter, request *http.Request) {
 func (b *Base) ScaleGET(responseWriter http.ResponseWriter, request *http.Request) {
 	b.log.Printf("%s %s -> %s", request.Method, request.URL.Path, request.RemoteAddr)
 
-	//populate the default ScaleOptions, PitchOptions, KeyOptions, OctaveOptions for scales and arpeggios
+	//populate the default HtmlSelectOption, PitchOptions, KeyOptions, OctaveOptions for scales and arpeggios
 	sOptions, pOptions, kOptions, oOptions := render.SetDefaultScaleOptions()
 
 	// set default page variables
@@ -61,101 +61,30 @@ func (b *Base) ScaleGET(responseWriter http.ResponseWriter, request *http.Reques
 func (b *Base) ScalePOST(responseWriter http.ResponseWriter, request *http.Request) {
 	b.log.Printf("%s %s -> %s", request.Method, request.URL.Path, request.RemoteAddr)
 
-	// Populate the default ScaleOptions, PitchOptions, KeyOptions, OctaveOptions for scales and arpeggios
-	sOptions, pOptions, kOptions, oOptions := render.SetDefaultScaleOptions()
+	// TODO: Write a function to handle errors and missing data
+	request.ParseForm()
+	pitch := request.Form["Pitch"][0]
+	octave := request.Form["Octave"][0]
+	scalearp := request.Form["Scalearp"][0]
+	key := request.Form["Key"][0]
 
-	request.ParseForm() //r is url.Values which is a map[string][]string
+	scaleOptions, pitchOptions, keyOptions, octaveOptions := render.SetDefaultScaleOptions()
+	keyOptions = render.BindValueToHtmlSelectOptions(key, keyOptions)
+	scaleOptions = render.BindValueToHtmlSelectOptions(scalearp, scaleOptions)
+	pitchOptions = render.BindValueToHtmlSelectOptions(pitch, pitchOptions)
+	octaveOptions = render.BindValueToHtmlSelectOptions(octave, octaveOptions)
 
-	var svalues []string
-	for _, values := range request.Form { // range over map
-		for _, value := range values { // range over []string
-			svalues = append(svalues, value) // stick each value in a slice I know the name of
+	displayKey := func(pitch string, key string) string {
+		keys := strings.Split(key, "/")
+		if pitch == "Minor" || len(keys) == 0 {
+			return keys[0]
 		}
-	}
 
-	scalearp, key, pitch, octave, leftlabel, rightlabel := "", "", "", "", "", ""
-
-	// the slice of values return by the request can be arranged in any order
-	// so identify selected scale / arpeggio, pitch, key and octave and store values in variables for later use.
-	for i := 0; i < 4; i++ {
-		switch svalues[i] {
-		case "Major":
-			pitch = svalues[i]
-		case "Minor":
-			pitch = svalues[i]
-		case "1":
-			octave = svalues[i]
-		case "2":
-			octave = svalues[i]
-		case "Scale":
-			scalearp = svalues[i]
-		case "Arpeggio":
-			scalearp = svalues[i]
-		default:
-			key = svalues[i]
-		}
-	}
-
-	// Update options based on the user's selection
-
-	// Set key options - set isChecked true for selected key and false for all other keys
-	kOptions = render.SetKeyOptions(key)
-
-	// Set scale options
-	if scalearp == "Scale" {
-		// if scale is selected set scale isChecked to true and arpeggio isChecked to false
-		sOptions = []render.ScaleOptions{
-			{"Scalearp", "Scale", false, true, "Scales"},
-			{"Scalearp", "Arpeggio", false, false, "Arpeggios"},
-		}
-	} else {
-		// if arpeggio is selected set arpeggio isChecked to true and scale isChecked to false
-		sOptions = []render.ScaleOptions{
-			{"Scalearp", "Scale", false, false, "Scales"},
-			{"Scalearp", "Arpeggio", false, true, "Arpeggios"},
-		}
-	}
-
-	// Set pitch options
-	if pitch == "Major" {
-		pOptions = []render.ScaleOptions{ // if major was selected, set major isChecked to true and minor isChecked to false
-			{"Pitch", "Major", false, true, "Major"},
-			{"Pitch", "Minor", false, false, "Minor"},
-		}
-	} else {
-		pOptions = []render.ScaleOptions{ // if minor was selected, set minor isChecked to true and major isChecked to false
-			{"Pitch", "Major", false, false, "Major"},
-			{"Pitch", "Minor", false, true, "Minor"},
-		}
-	}
-
-	// Set octave options
-	if octave == "1" {
-		oOptions = []render.ScaleOptions{
-			{"Octave", "1", false, true, "1 Octave"},
-			{"Octave", "2", false, false, "2 Octave"},
-		}
-	} else {
-		oOptions = []render.ScaleOptions{
-			{"Octave", "1", false, false, "1 Octave"},
-			{"Octave", "2", false, true, "2 Octave"},
-		}
-	}
-
-	// work out what the actual key is and set its value
-	if pitch == "Major" {
-		// for major scales if the key is longer than 2 characters, we only care about the last 2 characters
-		if len(key) > 2 { // only select last two characters for keys which contain two possible names e.g. C#/Db
-			key = key[3:]
-		}
-	} else { // pitch is minor
-		// for minor scales if the key is longer than 2 characters, we only care about the first 2 characters
-		if len(key) > 2 { // only select first two characters for keys which contain two possible names e.g. C#/Db
-			key = key[:2]
-		}
-	}
+		return keys[1]
+	}(pitch, key)
 
 	// Set the labels, Major have a scale and a drone, while minor have melodic and harmonic minor scales
+	leftlabel, rightlabel := "", ""
 	if pitch == "Major" {
 		leftlabel = "Listen to Major "
 		rightlabel = "Listen to Drone"
@@ -196,8 +125,8 @@ func (b *Base) ScalePOST(responseWriter http.ResponseWriter, request *http.Reque
 		audioPath += "minor/"
 	}
 
-	audioPath += strings.ToLower(key)
-	imgPath += strings.ToLower(key)
+	audioPath += strings.ToLower(displayKey)
+	imgPath += strings.ToLower(displayKey)
 	// if the img or audio path contain #, delete last character and replace it with s
 	imgPath = render.ChangeSharpToS(imgPath)
 	audioPath = render.ChangeSharpToS(audioPath)
@@ -223,7 +152,7 @@ func (b *Base) ScalePOST(responseWriter http.ResponseWriter, request *http.Reque
 		audioPath2 += "m.mp3"                       // then add m for melodic and the .mp3 suffix
 	} else { // audioPath2 needs to be a drone note.
 		audioPath2 += "drone/"
-		audioPath2 += strings.ToLower(key)
+		audioPath2 += strings.ToLower(displayKey)
 		// may have just added a # to the path, so use the function to change # to s
 		audioPath2 = render.ChangeSharpToS(audioPath2)
 		switch octave {
@@ -237,7 +166,7 @@ func (b *Base) ScalePOST(responseWriter http.ResponseWriter, request *http.Reque
 	pageVars := render.PageVars{
 		Title:         "Practice Scales and Arpeggios",
 		Scalearp:      scalearp,
-		Key:           key,
+		Key:           displayKey,
 		Pitch:         pitch,
 		ScaleImgPath:  imgPath,
 		GifPath:       "img/major/gif/a1.gif",
@@ -245,10 +174,10 @@ func (b *Base) ScalePOST(responseWriter http.ResponseWriter, request *http.Reque
 		AudioPath2:    audioPath2,
 		LeftLabel:     leftlabel,
 		RightLabel:    rightlabel,
-		ScaleOptions:  sOptions,
-		PitchOptions:  pOptions,
-		KeyOptions:    kOptions,
-		OctaveOptions: oOptions,
+		ScaleOptions:  scaleOptions,
+		PitchOptions:  pitchOptions,
+		KeyOptions:    keyOptions,
+		OctaveOptions: octaveOptions,
 	}
 	if err := render.Render(responseWriter, "scale.html", pageVars); err != nil {
 		b.log.Printf("%s %s -> %s : ERROR : %v", request.Method, request.URL.Path, request.RemoteAddr, err)
@@ -260,7 +189,7 @@ func (b *Base) ScalePOST(responseWriter http.ResponseWriter, request *http.Reque
 func (b *Base) DuetGET(responseWriter http.ResponseWriter, request *http.Request) {
 	b.log.Printf("%s %s -> %s", request.Method, request.URL.Path, request.RemoteAddr)
 
-	dOptions := []render.ScaleOptions{
+	dOptions := []render.HtmlSelectOption{
 		{"Duet", "G Major", false, true, "G Major"},
 		{"Duet", "D Major", false, false, "D Major"},
 		{"Duet", "A Major", false, false, "A Major"},
@@ -286,7 +215,7 @@ func (b *Base) DuetPOST(responseWriter http.ResponseWriter, request *http.Reques
 	b.log.Printf("%s %s -> %s", request.Method, request.URL.Path, request.RemoteAddr)
 
 	// define default duet options
-	dOptions := []render.ScaleOptions{
+	dOptions := []render.HtmlSelectOption{
 		{"Duet", "G Major", false, true, "G Major"},
 		{"Duet", "D Major", false, false, "D Major"},
 		{"Duet", "A Major", false, false, "A Major"},
@@ -308,7 +237,7 @@ func (b *Base) DuetPOST(responseWriter http.ResponseWriter, request *http.Reques
 
 	switch dvalues[0] {
 	case "D Major":
-		dOptions = []render.ScaleOptions{
+		dOptions = []render.HtmlSelectOption{
 			{"Duet", "G Major", false, false, "G Major"},
 			{"Duet", "D Major", false, true, "D Major"},
 			{"Duet", "A Major", false, false, "A Major"},
@@ -318,7 +247,7 @@ func (b *Base) DuetPOST(responseWriter http.ResponseWriter, request *http.Reques
 		DuetAudio1 = "mp3/duet/dmajorduetpt1.mp3"
 		DuetAudio2 = "mp3/duet/dmajorduetpt2.mp3"
 	case "G Major":
-		dOptions = []render.ScaleOptions{
+		dOptions = []render.HtmlSelectOption{
 			{"Duet", "G Major", false, true, "G Major"},
 			{"Duet", "D Major", false, false, "D Major"},
 			{"Duet", "A Major", false, false, "A Major"},
@@ -329,7 +258,7 @@ func (b *Base) DuetPOST(responseWriter http.ResponseWriter, request *http.Reques
 		DuetAudio2 = "mp3/duet/gmajorduetpt2.mp3"
 
 	case "A Major":
-		dOptions = []render.ScaleOptions{
+		dOptions = []render.HtmlSelectOption{
 			{"Duet", "G Major", false, false, "G Major"},
 			{"Duet", "D Major", false, false, "D Major"},
 			{"Duet", "A Major", false, true, "A Major"},
