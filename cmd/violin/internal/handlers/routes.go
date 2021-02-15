@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"github.com/jean-pasqualini/goviolin/cmd/violin/internal/handlers/controllers"
 	"log"
 	"net/http"
 )
@@ -14,13 +15,10 @@ func NewMux(log *log.Logger) *http.ServeMux {
 	mux.Handle("/img/", http.StripPrefix("/img/", http.FileServer(http.Dir("img"))))
 	mux.Handle("/mp3/", http.StripPrefix("/mp3/", http.FileServer(http.Dir("mp3"))))
 
-	base := Base{log: log}
 	// When navigating to /home it should serve the home page.
-	mux.HandleFunc("/", base.Home)
-	mux.HandleFunc("/scale", base.Scale)
-	mux.HandleFunc("/scaleshow", base.Scale)
-	mux.HandleFunc("/duets", base.Duet)
-	mux.HandleFunc("/duetshow", base.Duet)
+	mux.HandleFunc("/", (&controllers.HomeController{Log: log}).Home)
+	mux.HandleFunc("/scale", (&controllers.ScaleController{Log: log}).Scale)
+	mux.HandleFunc("/duets", (&controllers.DuetController{Log: log}).Duet)
 
 	return mux
 }
