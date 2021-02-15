@@ -17,10 +17,10 @@ func NewMux(log *log.Logger) *http.ServeMux {
 	base := Base{log: log}
 	// When navigating to /home it should serve the home page.
 	mux.HandleFunc("/", base.Home)
-	mux.HandleFunc("/scale", base.ScaleGET)
-	mux.HandleFunc("/scaleshow", base.ScalePOST)
-	mux.HandleFunc("/duets", base.DuetGET)
-	mux.HandleFunc("/duetshow", base.DuetPOST)
+	mux.HandleFunc("/scale", base.Scale)
+	mux.HandleFunc("/scaleshow", base.Scale)
+	mux.HandleFunc("/duets", base.Duet)
+	mux.HandleFunc("/duetshow", base.Duet)
 
 	return mux
 }
